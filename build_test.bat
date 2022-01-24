@@ -1,0 +1,1 @@
+clang.exe -o .\bin\test.exe -I .\test\inc -I .\core\inc .\test\src\*.c .\core\src\*.c
