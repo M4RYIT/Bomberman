@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 
     drawable dw_player;
     drawable_init(&dw_player, renderer, "assets//player.bmp", 64, 128, 1, 3);
-    dw_player.offset_y = -player.move_comp.width;
+    dw_player.offset_y = -player.move_comp.height;
 
     float delta_x = 0;
     float delta_y = 0;
@@ -102,11 +102,12 @@ int main(int argc, char **argv)
             set_drawable_srcrect(&dw_player, 0, 0);
         }
         set_drawable_dstrect_coords(&dw_player, player.move_comp.x, player.move_comp.y);      
+        
         SDL_RenderCopyEx(renderer, dw_player.texture, &dw_player.src_rect, &dw_player.dst_rect, 
                          0, NULL, (delta_x<0) * SDL_FLIP_HORIZONTAL);
 
         SDL_RenderPresent(renderer);
-    }
+    }    
 
 quit:
     if (window) SDL_DestroyWindow(window);
