@@ -1,14 +1,13 @@
-#include <SDL.h>
 #include "bomberman.h"
+#include "dict.h"
 #include "level1.h"
+
+#include <stdio.h>
 
 int main(int argc, char **argv)
 {
     level lv_1;
     level_init(&lv_1, 8, 8, 64, level1_cells);
-
-    bomberman player;
-    player.move_comp = (movable){100, 100, 64, 64, 48};
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -17,12 +16,25 @@ int main(int argc, char **argv)
     
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    drawable dw_cell;
-    drawable_init(&dw_cell, renderer, "assets//level_tiles.bmp", 64, 64, 1, 4);
+    net network;
+    if (!net_init(&network, "127.0.0.1")) goto quit;   
+    
+    dict *players = dict_new(sizeof(bomberman));
+    bomberman *pl = bomberman_init(renderer, 100, 100);
 
-    drawable dw_player;
-    drawable_init(&dw_player, renderer, "assets//player.bmp", 64, 128, 1, 3);
-    dw_player.offset_y = -player.move_comp.height;
+    set_send_buffer(&network, &(update_struct){pl->move_comp.x, pl->move_comp.y}, sizeof(update_struct));
+    if (!net_send(&network, sizeof(update_struct))) goto quit;   
+
+    if (!net_recv(&network, sizeof(setup_struct))) goto quit;
+    setup_struct *set_up = (setup_struct*)network.recv_buffer; 
+    network.update_rate = set_up->update_rate;
+    dict_append(players, set_up->auth, pl);    
+    printf("%d\n", set_up->auth); 
+
+    drawable dw_cell;
+    drawable_init(&dw_cell, renderer, "assets//level_tiles.bmp", 64, 64, 1, 4);   
+
+    if (!net_noblock_mode(&network, 1)) goto quit;
 
     float delta_x = 0;
     float delta_y = 0;
@@ -87,24 +99,55 @@ int main(int argc, char **argv)
         delta_x = (!(delta_y!=0))*(SHIFTED_INPUT(axis, Right) - SHIFTED_INPUT(axis, Left));
         delta_y = (!(delta_x!=0))*(SHIFTED_INPUT(axis, Down) - SHIFTED_INPUT(axis, Up));
 
-        move_on_level(&lv_1, &player.move_comp, delta_x * player.move_comp.speed * (1.0/60), delta_y * player.move_comp.speed * (1.0/60));
+        move_on_level(&lv_1, &pl->move_comp, delta_x * pl->move_comp.speed * DELTA_TIME, delta_y * pl->move_comp.speed * DELTA_TIME);
        
         if (delta_x) 
         {
-            set_drawable_srcrect(&dw_player, 1, 0);
+            set_drawable_srcrect(&pl->draw_comp, 1, 0);
         }
         else if (delta_y<0)
         {
-            set_drawable_srcrect(&dw_player, 2, 0);
+            set_drawable_srcrect(&pl->draw_comp, 2, 0);
         } 
         else
         {
-            set_drawable_srcrect(&dw_player, 0, 0);
+            set_drawable_srcrect(&pl->draw_comp, 0, 0);
         }
-        set_drawable_dstrect_coords(&dw_player, player.move_comp.x, player.move_comp.y);      
+        set_drawable_dstrect_coords(&pl->draw_comp, pl->move_comp.x, pl->move_comp.y);      
         
-        SDL_RenderCopyEx(renderer, dw_player.texture, &dw_player.src_rect, &dw_player.dst_rect, 
+        SDL_RenderCopyEx(renderer, pl->draw_comp.texture, &pl->draw_comp.src_rect, &pl->draw_comp.dst_rect, 
                          0, NULL, (delta_x<0) * SDL_FLIP_HORIZONTAL);
+
+        if (net_update(&network))
+        {
+            set_send_buffer(&network, &(update_struct){pl->move_comp.x, pl->move_comp.y}, sizeof(update_struct));
+            if (!net_send(&network, sizeof(update_struct))) goto quit;   
+        }
+
+        if (net_recv(&network, sizeof(new_update_struct)))
+        {
+            new_update_struct *nus = (new_update_struct*)network.recv_buffer;
+
+            if (nus->x<0 || nus->y<0)
+            {
+                dict_remove(players, nus->auth);
+            }
+            else
+            {
+                if (!dict_contains_key(players, nus->auth)) dict_append(players, nus->auth, bomberman_init(renderer, 0.0, 0.0));
+
+                bomberman *bm = dict_value_by_key(players, nus->auth);
+                bm->move_comp.x = nus->x;
+                bm->move_comp.y = nus->y;
+            }            
+        }
+
+        for (int i=1; i<players->count; i++)
+        {
+            bomberman *bm = dict_value_at(players, i);
+            set_drawable_dstrect_coords(&bm->draw_comp, bm->move_comp.x, bm->move_comp.y);
+            SDL_RenderCopy(renderer, bm->draw_comp.texture, &bm->draw_comp.src_rect, &bm->draw_comp.dst_rect);
+        }
 
         SDL_RenderPresent(renderer);
     }    
@@ -112,6 +155,12 @@ int main(int argc, char **argv)
 quit:
     if (window) SDL_DestroyWindow(window);
     if (renderer) SDL_DestroyRenderer(renderer);
+
+    set_send_buffer(&network, &(update_struct){-1, -1}, sizeof(update_struct));
+    net_send(&network, sizeof(update_struct));
+    
+    net_free(&network);
+    dict_free(players);
     SDL_Quit();
     return 0;
 }

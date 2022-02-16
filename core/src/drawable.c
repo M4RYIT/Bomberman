@@ -29,7 +29,7 @@ int drawable_init(drawable *dw, SDL_Renderer *rnd, char *file_name, uint32_t w, 
 void set_drawable_srcrect(drawable *dw, uint32_t index_x, uint32_t index_y)
 {
     dw->src_rect.x = (index_x%dw->cols)*dw->src_rect.w;
-    dw->src_rect.y = (index_y%dw->cols)*dw->src_rect.h;
+    dw->src_rect.y = (index_y%dw->rows)*dw->src_rect.h;
 }
 
 void set_drawable_dstrect_coords(drawable *dw, uint32_t x, uint32_t y)
