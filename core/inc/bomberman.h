@@ -19,7 +19,7 @@
 #define SHIFTED_INPUT(axis, value) ((axis&value)>>(int)log2f(value))
 #define INPUT_CANC(value) (0xf-value)
 
-#define DELTA_TIME (1.0/60)
+#define LERP(a, b, t) (a + t * (b-a))
 
 typedef enum input
 {
@@ -102,13 +102,13 @@ typedef struct update_struct
 }
 update_struct;
 
-typedef struct new_update_struct
+typedef struct other_update_struct
 {
     int auth;
     float x;
     float y;
 }
-new_update_struct;
+other_update_struct;
 
 int level_init(level *lv, const uint32_t cols, const uint32_t rows, const uint32_t cell_size, int32_t *cells);
 
@@ -145,3 +145,15 @@ bomberman *bomberman_init(SDL_Renderer *rnd, float x, float y);
 int net_update(net *n);
 
 void net_free(net *n);
+
+double delta_time();
+
+void start_time();
+
+void update_time();
+
+void movable_update(movable *mv, float x, float y);
+
+update_struct *new_update_struct(float x, float y);
+
+void set_update_struct(update_struct *ups, float new_x, float new_y);

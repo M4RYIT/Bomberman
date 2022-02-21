@@ -1,7 +1,6 @@
 #include "dict.h"
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 dict *dict_new(size_t t)
 {

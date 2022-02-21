@@ -17,3 +17,9 @@ void move_on_level(level *lv, movable *mv, const float delta_x, const float delt
     mv->x = new_x + ((SIGN(new_x-mv->x)) * dx * -offset_x);
     mv->y = new_y + ((SIGN(new_y-mv->y)) * dy * -offset_y);   
 }
+
+void movable_update(movable *mv, float x, float y)
+{
+    mv->x = x;
+    mv->y = y;
+}

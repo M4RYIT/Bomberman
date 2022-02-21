@@ -47,10 +47,10 @@ void get_recv_buffer(net *n, void *value, size_t sz)
 
 int net_update(net *n)
 {
-    static float timer = 0;
-    timer += DELTA_TIME;
+    static double timer = 0;
+    timer += delta_time();
 
-    if (timer > n->update_rate)
+    if (timer > (double)(n->update_rate))
     {
         timer = 0;
         return 1;
