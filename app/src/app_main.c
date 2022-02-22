@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
     if (!net_noblock_mode(&network, 1)) goto quit;
 
-    dict *players_next_pos = dict_new(sizeof(update_struct));
+    dict *players_vel = dict_new(sizeof(update_struct));
 
     float delta_x = 0;
     float delta_y = 0;
@@ -137,29 +137,31 @@ int main(int argc, char **argv)
             if (nus->x<0 || nus->y<0)
             {
                 dict_remove(players, nus->auth);
-                dict_remove(players_next_pos, nus->auth);
+                dict_remove(players_vel, nus->auth);
             }
             else
             {
-                if (!dict_contains_key(players, nus->auth)) 
+                if (!dict_contains_key(players, nus->auth))
                 {
-                    dict_append(players, nus->auth, bomberman_init(renderer, nus->x, nus->y));
-                    dict_append(players_next_pos, nus->auth, new_update_struct(nus->x, nus->y));
+                    dict_append(players, nus->auth, bomberman_init(renderer, nus->x, nus->y));    
+                    dict_append(players_vel, nus->auth, new_update_struct(0.f, 0.f));
                 }
 
-                update_struct *ups = dict_value_by_key(players_next_pos, nus->auth);
-                set_update_struct(ups, nus->x, nus->y);
+                bomberman *bm = dict_value_by_key(players, nus->auth);
+                update_struct *ups = dict_value_by_key(players_vel, nus->auth);
+                set_update_struct(ups, (nus->x - bm->move_comp.x) * (1.0f/network.update_rate), 
+                                 (nus->y - bm->move_comp.y) * (1.0f/network.update_rate));
             }            
         }
 
-        for (int i=0; i<players_next_pos->count; i++)
+        for (int i=0; i<players_vel->count; i++)
         {
-            dict_node *dn = dict_at(players_next_pos, i);
-            update_struct *next_pos = dn->value;
+            dict_node *dn = dict_at(players_vel, i);
+            update_struct *vel = dn->value;
 
-            bomberman *bm = dict_value_by_key(players, dn->key);            
-            bm->move_comp.x += (next_pos->x - bm->move_comp.x) * delta_time() * (1.0/network.update_rate);
-            bm->move_comp.y += (next_pos->y - bm->move_comp.y) * delta_time() * (1.0/network.update_rate);
+            bomberman *bm = dict_value_by_key(players, dn->key); 
+            bm->move_comp.x += vel->x * delta_time();
+            bm->move_comp.y += vel->y * delta_time();
 
             set_drawable_dstrect_coords(&bm->draw_comp, bm->move_comp.x, bm->move_comp.y);
             SDL_RenderCopy(renderer, bm->draw_comp.texture, &bm->draw_comp.src_rect, &bm->draw_comp.dst_rect);
@@ -177,7 +179,7 @@ quit:
     
     net_free(&network);
     dict_free(players);
-    dict_free(players_next_pos);
+    dict_free(players_vel);
     SDL_Quit();
     return 0;
 }
